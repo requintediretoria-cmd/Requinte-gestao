@@ -5,10 +5,12 @@ import { signOut } from "next-auth/react";
 
 const nav = [
   { href: "/dashboard",  label: "Dashboard",      icon: "⊞" },
+  { href: "/receitas",   label: "Receitas",       icon: "💰" },
   { href: "/notas",      label: "Notas Fiscais",  icon: "📄" },
   { href: "/boletos",    label: "Boletos",        icon: "🏦" },
   { href: "/compras",    label: "Compras s/ NF",  icon: "🛒" },
   { href: "/pagamentos", label: "Pagamentos",     icon: "📅" },
+  { href: "/dre",        label: "DRE",            icon: "📈" },
   { href: "/relatorio",  label: "Relatório",      icon: "📊" },
   { href: "/tributos",   label: "Tributos",       icon: "⚖️" },
 ];

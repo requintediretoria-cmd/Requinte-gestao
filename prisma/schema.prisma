@@ -124,6 +124,17 @@ model CompraManual {
   updatedAt       DateTime  @updatedAt
 }
 
+model Receita {
+  id             Int      @id @default(autoincrement())
+  data           DateTime
+  valor          Float
+  descricao      String?
+  formaPagamento String   @default("Outros") // Dinheiro, Cartão Débito, Cartão Crédito, PIX, Outros
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 model CreditoTributario {
   id              Int        @id @default(autoincrement())
   notaFiscal      NotaFiscal @relation(fields: [notaFiscalId], references: [id], onDelete: Cascade)
