@@ -4,20 +4,13 @@ import { formatBRL, formatDate } from "@/lib/formatters";
 import NovaCompraButton from "./NovaCompraButton";
 import CompraActions from "./CompraActions";
 
-const statusColor: Record<string, string> = {
-  pendente: "bg-yellow-100 text-yellow-800",
-  pago:     "bg-green-100 text-green-800",
-};
-
 export default async function ComprasPage() {
   const compras = await prisma.compraManual.findMany({
     orderBy: { dataCompra: "desc" },
   });
 
-  const totalPendente = compras.filter((c) => c.status === "pendente").reduce((s, c) => s + c.valor, 0);
-  const totalPago     = compras.filter((c) => c.status === "pago").reduce((s, c) => s + (c.valorPago ?? c.valor), 0);
+  const total = compras.reduce((s, c) => s + c.valor, 0);
 
-  // Group by categoria for summary
   const porCategoria: Record<string, number> = {};
   for (const c of compras) {
     porCategoria[c.categoria] = (porCategoria[c.categoria] || 0) + c.valor;
@@ -25,25 +18,25 @@ export default async function ComprasPage() {
 
   return (
     <div>
-      <Header title="Compras sem Nota Fiscal" subtitle="Cadastro manual de compras" />
+      <Header title="Compras sem Nota Fiscal" subtitle="Pagamentos à vista em dinheiro" />
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-yellow-50 rounded-xl p-5">
-          <p className="text-xs font-medium text-yellow-700 uppercase tracking-wide mb-1">A Pagar</p>
-          <p className="text-2xl font-bold text-yellow-800">{formatBRL(totalPendente)}</p>
+        <div className="bg-gray-900 text-white rounded-xl p-5">
+          <p className="text-xs font-medium uppercase tracking-wide opacity-70 mb-1">Total Gasto</p>
+          <p className="text-2xl font-bold">{formatBRL(total)}</p>
+          <p className="text-xs opacity-50 mt-0.5">{compras.length} compra(s)</p>
         </div>
         <div className="bg-green-50 rounded-xl p-5">
-          <p className="text-xs font-medium text-green-700 uppercase tracking-wide mb-1">Pago</p>
-          <p className="text-2xl font-bold text-green-800">{formatBRL(totalPago)}</p>
+          <p className="text-xs font-medium text-green-700 uppercase tracking-wide mb-1">Forma de Pagamento</p>
+          <p className="text-lg font-bold text-green-800">💵 Dinheiro à vista</p>
         </div>
-        <div className="bg-gray-50 rounded-xl p-5">
-          <p className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">Total Cadastrado</p>
-          <p className="text-2xl font-bold text-gray-900">{formatBRL(totalPendente + totalPago)}</p>
+        <div className="bg-brand-50 rounded-xl p-5">
+          <p className="text-xs font-medium text-brand-700 uppercase tracking-wide mb-1">Categorias</p>
+          <p className="text-2xl font-bold text-brand-900">{Object.keys(porCategoria).length}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* Lista principal */}
         <div className="col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h3 className="font-semibold text-gray-800">Registros</h3>
@@ -61,12 +54,10 @@ export default async function ComprasPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                    <th className="px-6 py-3">Fornecedor / Descrição</th>
+                    <th className="px-6 py-3">Fornecedor / Produto</th>
                     <th className="px-6 py-3">Categoria</th>
                     <th className="px-6 py-3">Data</th>
-                    <th className="px-6 py-3">Vencimento</th>
                     <th className="px-6 py-3 text-right">Valor</th>
-                    <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3"></th>
                   </tr>
                 </thead>
@@ -83,15 +74,7 @@ export default async function ComprasPage() {
                         </span>
                       </td>
                       <td className="px-6 py-3 text-gray-600">{formatDate(c.dataCompra)}</td>
-                      <td className="px-6 py-3 text-gray-600">
-                        {c.dataVencimento ? formatDate(c.dataVencimento) : "—"}
-                      </td>
                       <td className="px-6 py-3 text-right font-bold text-gray-900">{formatBRL(c.valor)}</td>
-                      <td className="px-6 py-3">
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor[c.status] ?? statusColor.pendente}`}>
-                          {c.status === "pago" ? "Pago" : "Pendente"}
-                        </span>
-                      </td>
                       <td className="px-6 py-3">
                         <CompraActions compra={c} />
                       </td>
@@ -103,7 +86,6 @@ export default async function ComprasPage() {
           )}
         </div>
 
-        {/* Resumo por categoria */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <div className="px-6 py-4 border-b border-gray-100">
             <h3 className="font-semibold text-gray-800">Por Categoria</h3>
@@ -120,6 +102,10 @@ export default async function ComprasPage() {
                     <span className="text-sm font-bold text-gray-900">{formatBRL(val)}</span>
                   </div>
                 ))}
+              <div className="flex justify-between items-center px-6 py-3 bg-gray-50 rounded-b-xl">
+                <span className="text-sm font-semibold text-gray-700">Total</span>
+                <span className="text-sm font-bold text-gray-900">{formatBRL(total)}</span>
+              </div>
             </div>
           )}
         </div>

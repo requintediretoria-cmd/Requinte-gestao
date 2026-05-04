@@ -32,15 +32,19 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
+  const dataCompra = new Date(body.dataCompra);
+
   const compra = await prisma.compraManual.create({
     data: {
-      fornecedor:     body.fornecedor,
-      descricao:      body.descricao,
-      categoria:      body.categoria,
-      valor:          Number(body.valor),
-      dataCompra:     new Date(body.dataCompra),
-      dataVencimento: body.dataVencimento ? new Date(body.dataVencimento) : null,
-      observacoes:    body.observacoes || null,
+      fornecedor:    body.fornecedor,
+      descricao:     body.descricao,
+      categoria:     body.categoria,
+      valor:         Number(body.valor),
+      dataCompra,
+      status:        "pago",
+      dataPagamento: dataCompra,
+      valorPago:     Number(body.valor),
+      observacoes:   body.observacoes || null,
     },
   });
 
