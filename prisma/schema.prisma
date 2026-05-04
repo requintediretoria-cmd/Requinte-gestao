@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model NotaFiscal {
+  id              Int      @id @default(autoincrement())
+  numero          String
+  serie           String   @default("1")
+  chaveAcesso     String?
+  dataEmissao     DateTime
+  dataEntrada     DateTime @default(now())
+
+  // Emitente
+  emitenteCNPJ    String
+  emitenteNome    String
+  emitenteUF      String   @default("")
+
+  // Valores
+  valorProdutos   Float    @default(0)
+  valorFrete      Float    @default(0)
+  valorSeguro     Float    @default(0)
+  valorDesconto   Float    @default(0)
+  valorOutros     Float    @default(0)
+  valorTotal      Float
+
+  // Tributos destacados na NF
+  baseICMS        Float    @default(0)
+  valorICMS       Float    @default(0)
+  valorICMSST     Float    @default(0)
+  baseIPI         Float    @default(0)
+  valorIPI        Float    @default(0)
+  valorPIS        Float    @default(0)
+  valorCOFINS     Float    @default(0)
+  valorDIFAL      Float    @default(0)
+
+  // Arquivo
+  imagemPath      String?
+  imagemNome      String?
+
+  status          String   @default("pendente") // pendente, paga, vencida
+  observacoes     String?
+
+  itens           ItemNotaFiscal[]
+  boletos         Boleto[]
+  creditos        CreditoTributario[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ItemNotaFiscal {
+  id              Int        @id @default(autoincrement())
+  notaFiscal      NotaFiscal @relation(fields: [notaFiscalId], references: [id], onDelete: Cascade)
+  notaFiscalId    Int
+
+  descricao       String
+  ncm             String     @default("")
+  cfop            String     @default("")
+  unidade         String     @default("UN")
+  quantidade      Float
+  valorUnitario   Float
+  valorTotal      Float
+
+  baseICMS        Float      @default(0)
+  aliqICMS        Float      @default(0)
+  valorICMS       Float      @default(0)
+  valorICMSST     Float      @default(0)
+
+  baseIPI         Float      @default(0)
+  aliqIPI         Float      @default(0)
+  valorIPI        Float      @default(0)
+
+  aliqPIS         Float      @default(0)
+  valorPIS        Float      @default(0)
+
+  aliqCOFINS      Float      @default(0)
+  valorCOFINS     Float      @default(0)
+
+  createdAt       DateTime   @default(now())
+}
+
+model Boleto {
+  id              Int         @id @default(autoincrement())
+  notaFiscal      NotaFiscal? @relation(fields: [notaFiscalId], references: [id])
+  notaFiscalId    Int?
+
+  beneficiario    String
+  valor           Float
+  dataVencimento  DateTime
+  linhaDigitavel  String?
+  codigoBarras    String?
+
+  status          String      @default("pendente") // pendente, pago, vencido
+  dataPagamento   DateTime?
+  valorPago       Float?
+
+  imagemPath      String?
+  imagemNome      String?
+  observacoes     String?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model CreditoTributario {
+  id              Int        @id @default(autoincrement())
+  notaFiscal      NotaFiscal @relation(fields: [notaFiscalId], references: [id], onDelete: Cascade)
+  notaFiscalId    Int
+
+  tipo            String     // ICMS_ST, ICMS_PROPRIO, DIFAL, MONOFASICO
+  regime          String     // SIMPLES, LP, LR
+  valor           Float
+  descricao       String
+  aproveitavel    Boolean    @default(false)
+  fundamentacao   String?    // legal basis
+
+  createdAt       DateTime   @default(now())
+}
