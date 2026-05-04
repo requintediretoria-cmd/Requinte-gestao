@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
       emitenteCNPJ: body.emitenteCNPJ,
       emitenteNome: body.emitenteNome,
       emitenteUF: body.emitenteUF || "",
+      categoria: body.categoria || "Outros",
       valorProdutos: body.valorProdutos || 0,
       valorFrete: body.valorFrete || 0,
       valorDesconto: body.valorDesconto || 0,

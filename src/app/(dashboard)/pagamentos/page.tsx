@@ -1,136 +1,139 @@
 import { prisma } from "@/lib/prisma";
 import Header from "@/components/Header";
-import { formatBRL, formatDate, daysUntil } from "@/lib/formatters";
+import { formatBRL, formatDate } from "@/lib/formatters";
+import PagarBoletoButton from "./PagarBoletoButton";
+import PagarCompraButton from "./PagarCompraButton";
+
+function getProximoMes() {
+  const hoje = new Date();
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+  const fim    = new Date(hoje.getFullYear(), hoje.getMonth() + 2, 0, 23, 59, 59);
+  return { inicio, fim };
+}
+
+function nomeProximoMes() {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
 
 export default async function PagamentosPage() {
-  const boletos = await prisma.boleto.findMany({
-    where: { status: "pendente" },
-    orderBy: { dataVencimento: "asc" },
-    include: { notaFiscal: { select: { numero: true, emitenteNome: true, emitenteCNPJ: true } } },
-  });
+  const { inicio, fim } = getProximoMes();
 
-  const pagos = await prisma.boleto.findMany({
-    where: { status: "pago" },
-    orderBy: { dataPagamento: "desc" },
-    take: 20,
-    include: { notaFiscal: { select: { numero: true, emitenteNome: true } } },
-  });
+  const [boletos, compras] = await Promise.all([
+    prisma.boleto.findMany({
+      where: { status: "pendente", dataVencimento: { gte: inicio, lte: fim } },
+      orderBy: { dataVencimento: "asc" },
+      include: { notaFiscal: { select: { numero: true, emitenteNome: true } } },
+    }),
+    prisma.compraManual.findMany({
+      where: { status: "pendente", dataVencimento: { gte: inicio, lte: fim } },
+      orderBy: { dataVencimento: "asc" },
+    }),
+  ]);
 
-  // Group pending by urgency
-  const hoje = boletos.filter((b) => daysUntil(b.dataVencimento) === 0);
-  const atrasados = boletos.filter((b) => daysUntil(b.dataVencimento) < 0);
-  const proximos = boletos.filter((b) => daysUntil(b.dataVencimento) > 0 && daysUntil(b.dataVencimento) <= 7);
-  const futuros = boletos.filter((b) => daysUntil(b.dataVencimento) > 7);
-
-  const totalPendente = boletos.reduce((s, b) => s + b.valor, 0);
-
-  function BoletoRow({ b }: { b: typeof boletos[0] }) {
-    const dias = daysUntil(b.dataVencimento);
-    return (
-      <div className="flex items-center justify-between p-4 border-b border-gray-50 last:border-0">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-900">{b.beneficiario}</p>
-          <p className="text-xs text-gray-400">
-            {b.notaFiscal ? `NF ${b.notaFiscal.numero} · ${b.notaFiscal.emitenteNome}` : "Sem NF vinculada"}
-          </p>
-          {b.linhaDigitavel && (
-            <p className="text-xs font-mono text-gray-400 mt-0.5 truncate max-w-xs">{b.linhaDigitavel}</p>
-          )}
-        </div>
-        <div className="text-right ml-4">
-          <p className="font-bold text-gray-900">{formatBRL(b.valor)}</p>
-          <p className="text-xs text-gray-500">{formatDate(b.dataVencimento)}</p>
-          <span className={`text-xs font-medium ${dias < 0 ? "text-red-600" : dias === 0 ? "text-orange-600" : "text-yellow-600"}`}>
-            {dias < 0 ? `${Math.abs(dias)}d em atraso` : dias === 0 ? "Vence hoje" : `${dias}d restantes`}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  function Section({ title, items, color }: { title: string; items: typeof boletos; color: string }) {
-    if (items.length === 0) return null;
-    return (
-      <div className={`bg-white rounded-xl border shadow-sm mb-4 overflow-hidden ${color}`}>
-        <div className="px-5 py-3 border-b border-inherit">
-          <div className="flex items-center justify-between">
-            <h4 className="font-semibold text-sm">{title}</h4>
-            <span className="text-sm font-bold">{formatBRL(items.reduce((s, b) => s + b.valor, 0))}</span>
-          </div>
-        </div>
-        {items.map((b) => <BoletoRow key={b.id} b={b} />)}
-      </div>
-    );
-  }
+  const totalBoletos = boletos.reduce((s, b) => s + b.valor, 0);
+  const totalCompras = compras.reduce((s, c) => s + c.valor, 0);
+  const totalGeral   = totalBoletos + totalCompras;
 
   return (
     <div>
-      <Header title="Agenda de Pagamentos" subtitle="Boletos pendentes e histórico" />
+      <Header
+        title="Pagamentos"
+        subtitle={`O que vence em ${nomeProximoMes()}`}
+      />
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        <div className="bg-red-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-red-700 uppercase tracking-wide mb-1">Atrasados</p>
-          <p className="text-2xl font-bold text-red-800">{atrasados.length}</p>
-          <p className="text-xs text-red-600">{formatBRL(atrasados.reduce((s, b) => s + b.valor, 0))}</p>
+      {/* Resumo */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-brand-50 border border-brand-200 rounded-xl p-5">
+          <p className="text-xs font-medium text-brand-700 uppercase tracking-wide mb-1">Total a Pagar</p>
+          <p className="text-3xl font-bold text-brand-900">{formatBRL(totalGeral)}</p>
+          <p className="text-xs text-brand-600 mt-1">{boletos.length + compras.length} compromisso(s)</p>
         </div>
-        <div className="bg-orange-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-orange-700 uppercase tracking-wide mb-1">Vencem Hoje</p>
-          <p className="text-2xl font-bold text-orange-800">{hoje.length}</p>
-          <p className="text-xs text-orange-600">{formatBRL(hoje.reduce((s, b) => s + b.valor, 0))}</p>
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-5">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Boletos</p>
+          <p className="text-2xl font-bold text-gray-900">{formatBRL(totalBoletos)}</p>
+          <p className="text-xs text-gray-400 mt-1">{boletos.length} boleto(s)</p>
         </div>
-        <div className="bg-yellow-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-yellow-700 uppercase tracking-wide mb-1">Próximos 7 dias</p>
-          <p className="text-2xl font-bold text-yellow-800">{proximos.length}</p>
-          <p className="text-xs text-yellow-600">{formatBRL(proximos.reduce((s, b) => s + b.valor, 0))}</p>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">Total Pendente</p>
-          <p className="text-2xl font-bold text-gray-900">{boletos.length}</p>
-          <p className="text-xs text-gray-500">{formatBRL(totalPendente)}</p>
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-5">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Compras s/ NF</p>
+          <p className="text-2xl font-bold text-gray-900">{formatBRL(totalCompras)}</p>
+          <p className="text-xs text-gray-400 mt-1">{compras.length} item(ns)</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        <div>
-          <h3 className="font-semibold text-gray-800 mb-4">Pendentes</h3>
+        {/* Boletos */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-800">Boletos</h3>
+          </div>
           {boletos.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
-              <p className="text-3xl mb-2">✅</p>
-              <p className="font-medium">Nenhum boleto pendente!</p>
-            </div>
+            <p className="text-sm text-gray-400 text-center py-10">Nenhum boleto para o próximo mês</p>
           ) : (
-            <>
-              <Section title="⚠️ Atrasados" items={atrasados} color="border-red-100" />
-              <Section title="🔴 Vencem hoje" items={hoje} color="border-orange-100" />
-              <Section title="🟡 Próximos 7 dias" items={proximos} color="border-yellow-100" />
-              <Section title="📅 Futuros" items={futuros} color="border-gray-100" />
-            </>
+            <div className="divide-y divide-gray-50">
+              {boletos.map((b) => (
+                <div key={b.id} className="flex items-center justify-between px-6 py-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{b.beneficiario}</p>
+                    <p className="text-xs text-gray-400">
+                      {b.notaFiscal ? `NF ${b.notaFiscal.numero} · ` : ""}
+                      Vence {formatDate(b.dataVencimento)}
+                    </p>
+                    {b.linhaDigitavel && (
+                      <p className="text-xs font-mono text-gray-400 truncate mt-0.5">{b.linhaDigitavel}</p>
+                    )}
+                  </div>
+                  <div className="text-right ml-4 shrink-0">
+                    <p className="font-bold text-gray-900">{formatBRL(b.valor)}</p>
+                    <PagarBoletoButton boletoId={b.id} valor={b.valor} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {boletos.length > 0 && (
+            <div className="px-6 py-3 bg-gray-50 rounded-b-xl flex justify-between text-sm">
+              <span className="text-gray-500">Total boletos</span>
+              <span className="font-bold text-gray-900">{formatBRL(totalBoletos)}</span>
+            </div>
           )}
         </div>
 
-        <div>
-          <h3 className="font-semibold text-gray-800 mb-4">Histórico de Pagamentos</h3>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-            {pagos.length === 0 ? (
-              <div className="py-8 text-center text-gray-400 text-sm">Nenhum pagamento registrado</div>
-            ) : (
-              pagos.map((b) => (
-                <div key={b.id} className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{b.beneficiario}</p>
+        {/* Compras manuais */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-800">Compras sem NF</h3>
+          </div>
+          {compras.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-10">Nenhuma compra para o próximo mês</p>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {compras.map((c) => (
+                <div key={c.id} className="flex items-center justify-between px-6 py-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{c.fornecedor}</p>
                     <p className="text-xs text-gray-400">
-                      Pago em {b.dataPagamento ? formatDate(b.dataPagamento) : "—"}
-                      {b.notaFiscal ? ` · NF ${b.notaFiscal.numero}` : ""}
+                      {c.descricao} · <span className="text-brand-600">{c.categoria}</span>
                     </p>
+                    {c.dataVencimento && (
+                      <p className="text-xs text-gray-400">Vence {formatDate(c.dataVencimento)}</p>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-green-700">{formatBRL(b.valorPago ?? b.valor)}</p>
-                    <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Pago</span>
+                  <div className="text-right ml-4 shrink-0">
+                    <p className="font-bold text-gray-900">{formatBRL(c.valor)}</p>
+                    <PagarCompraButton compraId={c.id} valor={c.valor} />
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
+          {compras.length > 0 && (
+            <div className="px-6 py-3 bg-gray-50 rounded-b-xl flex justify-between text-sm">
+              <span className="text-gray-500">Total compras s/ NF</span>
+              <span className="font-bold text-gray-900">{formatBRL(totalCompras)}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

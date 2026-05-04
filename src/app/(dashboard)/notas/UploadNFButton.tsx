@@ -2,6 +2,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatBRL } from "@/lib/formatters";
+import { CATEGORIAS } from "@/lib/categorias";
 
 interface NFExtracted {
   numero: string; serie: string; chaveAcesso: string; dataEmissao: string;
@@ -19,6 +20,7 @@ export default function UploadNFButton() {
   const [error, setError] = useState("");
   const [data, setData] = useState<{ extracted: NFExtracted; imagemPath: string; imagemNome: string } | null>(null);
   const [form, setForm] = useState<Partial<NFExtracted>>({});
+  const [categoria, setCategoria] = useState("Outros");
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -58,6 +60,7 @@ export default function UploadNFButton() {
     const payload = {
       ...data.extracted,
       ...form,
+      categoria,
       imagemPath: data.imagemPath,
       imagemNome: data.imagemNome,
       valorProdutos:  Number(form.valorProdutos  ?? data.extracted.valorProdutos),
@@ -109,6 +112,12 @@ export default function UploadNFButton() {
             </div>
 
             <div className="p-6 space-y-4">
+              <div>
+                <label className="label">Categoria da Compra</label>
+                <select className="input" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+                  {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="label">Número NF</label>
