@@ -10,6 +10,7 @@ export interface NFExtracted {
   emitenteCNPJ: string;
   emitenteNome: string;
   emitenteUF: string;
+  categoria: string;
   valorProdutos: number;
   valorFrete: number;
   valorDesconto: number;
@@ -60,7 +61,7 @@ export async function extractNFFromImage(
           },
           {
             type: "text",
-            text: `Você está analisando um DANFE (Documento Auxiliar da Nota Fiscal Eletrônica) brasileiro ou uma nota fiscal de compra.
+            text: `Você está analisando um DANFE (Documento Auxiliar da Nota Fiscal Eletrônica) brasileiro ou uma nota fiscal de compra para um restaurante.
 
 Extraia TODOS os dados disponíveis e retorne APENAS um JSON válido, sem nenhum texto adicional, no seguinte formato:
 
@@ -72,6 +73,7 @@ Extraia TODOS os dados disponíveis e retorne APENAS um JSON válido, sem nenhum
   "emitenteCNPJ": "CNPJ formatado",
   "emitenteNome": "razão social do emitente",
   "emitenteUF": "UF de 2 letras",
+  "categoria": "categoria desta compra",
   "valorProdutos": 0.00,
   "valorFrete": 0.00,
   "valorDesconto": 0.00,
@@ -105,7 +107,11 @@ Extraia TODOS os dados disponíveis e retorne APENAS um JSON válido, sem nenhum
   ]
 }
 
-Use 0 para campos não encontrados. Retorne SOMENTE o JSON, nada mais.`,
+Para o campo "categoria", analise os itens da nota e o nome do emitente e escolha UMA das seguintes opções:
+"Carnes e Proteínas", "Hortifruti", "Laticínios e Frios", "Grãos e Cereais", "Bebidas",
+"Descartáveis e Embalagens", "Higiene e Limpeza", "Manutenção", "Equipamentos", "Serviços", "Outros"
+
+Use 0 para campos numéricos não encontrados. Retorne SOMENTE o JSON, nada mais.`,
           },
         ],
       },

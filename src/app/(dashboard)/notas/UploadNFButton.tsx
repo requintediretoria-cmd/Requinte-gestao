@@ -45,6 +45,7 @@ export default function UploadNFButton() {
 
     setData(json);
     setForm(json.extracted);
+    setCategoria(json.extracted.categoria || "Outros");
     setStep("review");
     e.target.value = "";
   }
